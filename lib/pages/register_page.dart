@@ -1,3 +1,4 @@
+// Path: lib/pages/register_page.dart
 import 'package:flutter/material.dart';
 import '../services/hive_service.dart';
 import '../models/user_model.dart';
@@ -59,25 +60,77 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Register')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _register, child: const Text('Register')),
-          ],
+      body: Center( // Pusatkan konten
+        child: SingleChildScrollView( // Agar bisa di-scroll
+          padding: const EdgeInsets.all(24), // Padding lebih besar
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Create Your Account',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Join us to explore Disney characters',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              if (_error != null)
+                Column(
+                  children: [
+                    Text(
+                      _error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 15),
+                  ],
+                ),
+              TextField(
+                controller: _usernameController,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  hintText: 'Choose a username',
+                  prefixIcon: Icon(Icons.person_add, color: Theme.of(context).colorScheme.primary),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Create a password',
+                  prefixIcon: Icon(Icons.vpn_key, color: Theme.of(context).colorScheme.primary),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _register,
+                  child: const Text('Register'),
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context); // Kembali ke Login
+                },
+                child: Text('Already have an account? Login here', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+              ),
+            ],
+          ),
         ),
       ),
     );

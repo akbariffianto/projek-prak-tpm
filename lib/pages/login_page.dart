@@ -1,3 +1,4 @@
+// Path: lib/pages/login_page.dart
 import 'package:flutter/material.dart';
 import '../services/hive_service.dart';
 import 'home_page.dart';
@@ -50,34 +51,79 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            TextField(
-              controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: _login, child: const Text('Login')),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const RegisterPage()),
-                );
-              },
-              child: const Text('Register here'),
-            ),
-          ],
+      body: Center( // Pusatkan konten
+        child: SingleChildScrollView( // Agar bisa di-scroll jika keyboard muncul
+          padding: const EdgeInsets.all(24), // Padding lebih besar
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Welcome Back!',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Login to explore Disney characters',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              if (_error != null)
+                Column(
+                  children: [
+                    Text(
+                      _error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 15),
+                  ],
+                ),
+              TextField(
+                controller: _usernameController,
+                decoration: InputDecoration(
+                  labelText: 'Username',
+                  hintText: 'Enter your username',
+                  prefixIcon: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  hintText: 'Enter your password',
+                  prefixIcon: Icon(Icons.lock, color: Theme.of(context).colorScheme.primary),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 30),
+              SizedBox(
+                width: double.infinity, // Tombol penuh lebar
+                child: ElevatedButton(
+                  onPressed: _login,
+                  child: const Text('Login'),
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterPage()),
+                  );
+                },
+                child: Text('Don\'t have an account? Register here', style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+              ),
+            ],
+          ),
         ),
       ),
     );
