@@ -22,4 +22,17 @@ class DisneyService {
       throw Exception('Failed to load character detail');
     }
   }
+
+  static Future<List<dynamic>> searchCharacters(String query) async {
+    final response = await http.get(
+      Uri.parse('https://api.disneyapi.dev/character?name=$query'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['data'] as List<dynamic>;
+    } else {
+      throw Exception('Failed to search characters');
+    }
+  }
 }

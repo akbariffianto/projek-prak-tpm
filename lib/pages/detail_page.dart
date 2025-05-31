@@ -4,7 +4,6 @@ import '../services/disney_service.dart';
 import '../services/hive_service.dart';
 import '../models/review_model.dart';
 import '../models/bookmark_model.dart';
-import '../models/user_model.dart'; // Import UserModel
 
 class DetailPage extends StatefulWidget {
   final int characterId;
@@ -31,6 +30,8 @@ class _DetailPageState extends State<DetailPage> {
 
   bool _isBookmarked = false;
   bool _bookmarkLoading = true;
+  bool _isFavorite = false;
+  bool _favoriteLoading = true;
 
   @override
   void initState() {
@@ -44,9 +45,11 @@ class _DetailPageState extends State<DetailPage> {
     if (_currentUserId != null) {
       await _loadReviews();
       await _checkBookmarkStatus();
+      await _checkFavoriteStatus();
     } else {
       setState(() {
         _bookmarkLoading = false;
+        _favoriteLoading = false;
       });
     }
     setState(() {});
@@ -63,13 +66,15 @@ class _DetailPageState extends State<DetailPage> {
     final Map<int, String> fetchedUsernames = {};
     for (var review in allReviews) {
       if (!fetchedUsernames.containsKey(review.userId)) {
-        UserModel? user = HiveService().userBox.values.firstWhere(
-              (u) => u.id == review.userId,
-              orElse: () => throw Exception(
-                  'User not found for review'), // Should not happen if data is consistent
-            );
-        if (user != null) {
-          fetchedUsernames[user.id] = user.username;
+        try {
+          final user = HiveService().userBox.values.firstWhere(
+            (u) => u.id == review.userId,
+            orElse: () => throw Exception('User not found for review'),
+          );
+          fetchedUsernames[review.userId] = user.username;
+        } catch (e) {
+          fetchedUsernames[review.userId] = 'Unknown User';
+          debugPrint('Error loading username for review: $e');
         }
       }
     }
@@ -88,11 +93,13 @@ class _DetailPageState extends State<DetailPage> {
     myReviews.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     otherReviews.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-    setState(() {
-      _characterReviews = [...myReviews, ...otherReviews];
-      _usernames = fetchedUsernames; // Simpan usernames yang sudah diambil
-      _calculateAverageRating();
-    });
+    if (mounted) {
+      setState(() {
+        _characterReviews = [...myReviews, ...otherReviews];
+        _usernames = fetchedUsernames;
+        _calculateAverageRating();
+      });
+    }
   }
 
   void _calculateAverageRating() {
@@ -121,6 +128,19 @@ class _DetailPageState extends State<DetailPage> {
       setState(() {
         _isBookmarked = false;
         _bookmarkLoading = false;
+      });
+    }
+  }
+
+  Future<void> _checkFavoriteStatus() async {
+    if (_currentUserId != null) {
+      final user = HiveService().userBox.values.firstWhere(
+            (u) => u.id == _currentUserId,
+            orElse: () => throw Exception('User not found'),
+          );
+      setState(() {
+        _isFavorite = user.favoriteCharacterId == widget.characterId.toString();
+        _favoriteLoading = false;
       });
     }
   }
@@ -154,6 +174,62 @@ class _DetailPageState extends State<DetailPage> {
       await hiveService.addBookmark(newBookmark);
     }
     await _checkBookmarkStatus();
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to set favorite characters')),
+      );
+      return;
+    }
+
+    setState(() {
+      _favoriteLoading = true;
+    });
+
+    try {
+      final characterData = await _characterFuture;
+      final user = HiveService().userBox.values.firstWhere(
+            (u) => u.id == _currentUserId,
+            orElse: () => throw Exception('User not found'),
+          );
+
+      // Jika karakter ini sudah menjadi favorit, hapus dari favorit
+      if (user.favoriteCharacterId == widget.characterId.toString()) {
+        user.favoriteCharacterId = null;
+        user.favoriteCharacterName = null;
+      } else {
+        // Jika belum, jadikan favorit
+        user.favoriteCharacterId = widget.characterId.toString();
+        user.favoriteCharacterName = characterData['data']['name'];
+        
+        // Update jumlah favorit di HiveService
+        await HiveService().updateCharacterFavorite(
+          widget.characterId.toString(),
+          characterData['data']['name'],
+        );
+      }
+      
+      await user.save();
+      await _checkFavoriteStatus();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isFavorite 
+            ? 'Added to favorites!' 
+            : 'Removed from favorites'),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error updating favorite status')),
+      );
+    } finally {
+      setState(() {
+        _favoriteLoading = false;
+      });
+    }
   }
 
   Future<void> _submitReview() async {
@@ -323,16 +399,36 @@ class _DetailPageState extends State<DetailPage> {
           appBar: AppBar(
             title: Text(characterData['name'] ?? 'Detail'),
             actions: [
+              _favoriteLoading
+                  ? const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                    )
+                  : IconButton(
+                      icon: Icon(_isFavorite
+                          ? Icons.favorite
+                          : Icons.favorite_border),
+                      onPressed: _toggleFavorite,
+                      tooltip: 'Set as Favorite',
+                    ),
               _bookmarkLoading
                   ? const Padding(
                       padding: EdgeInsets.all(16),
                       child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          )),
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
                   : IconButton(
                       icon: Icon(_isBookmarked
