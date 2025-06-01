@@ -18,7 +18,7 @@ class CharacterFavoritesModelAdapter
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return CharacterFavoritesModel(
-      characterId: fields[0] as String,
+      characterId: fields[0] as int,
       characterName: fields[1] as String,
       favoriteCount: fields[2] as int,
     );

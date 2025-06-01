@@ -4,6 +4,7 @@ import '../services/disney_service.dart';
 import '../services/hive_service.dart';
 import '../models/review_model.dart';
 import '../models/bookmark_model.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // Import ini
 
 class DetailPage extends StatefulWidget {
   final int characterId;
@@ -52,7 +53,7 @@ class _DetailPageState extends State<DetailPage> {
         _favoriteLoading = false;
       });
     }
-    setState(() {});
+    // Tidak perlu setState di sini karena sudah dipanggil di _loadReviews dll.
   }
 
   Future<void> _loadReviews() async {
@@ -139,7 +140,8 @@ class _DetailPageState extends State<DetailPage> {
             orElse: () => throw Exception('User not found'),
           );
       setState(() {
-        _isFavorite = user.favoriteCharacterId == widget.characterId.toString();
+        // Bandingkan dengan int, bukan string
+        _isFavorite = user.favoriteCharacterId == widget.characterId;
         _favoriteLoading = false;
       });
     }
@@ -189,25 +191,27 @@ class _DetailPageState extends State<DetailPage> {
     });
 
     try {
-      final characterData = await _characterFuture;
+      final characterDataResponse = await _characterFuture; // Ambil respons lengkap
+      final characterData = characterDataResponse['data']; // Ambil data karakter dari respons
+      
       final user = HiveService().userBox.values.firstWhere(
             (u) => u.id == _currentUserId,
             orElse: () => throw Exception('User not found'),
           );
 
       // Jika karakter ini sudah menjadi favorit, hapus dari favorit
-      if (user.favoriteCharacterId == widget.characterId.toString()) {
+      if (user.favoriteCharacterId == widget.characterId) { // Bandingkan dengan int
         user.favoriteCharacterId = null;
         user.favoriteCharacterName = null;
       } else {
         // Jika belum, jadikan favorit
-        user.favoriteCharacterId = widget.characterId.toString();
-        user.favoriteCharacterName = characterData['data']['name'];
+        user.favoriteCharacterId = widget.characterId; // Simpan sebagai int
+        user.favoriteCharacterName = characterData['name'];
         
         // Update jumlah favorit di HiveService
         await HiveService().updateCharacterFavorite(
-          widget.characterId.toString(),
-          characterData['data']['name'],
+          widget.characterId, // Kirim int
+          characterData['name'],
         );
       }
       
@@ -216,12 +220,13 @@ class _DetailPageState extends State<DetailPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isFavorite 
-            ? 'Added to favorites!' 
-            : 'Removed from favorites'),
+          content: Text(_isFavorite // _isFavorite akan berubah setelah await _checkFavoriteStatus()
+            ? 'Removed from favorites!'
+            : 'Added to favorites!'),
         ),
       );
     } catch (e) {
+      debugPrint('Error updating favorite status: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error updating favorite status')),
       );
@@ -391,9 +396,9 @@ class _DetailPageState extends State<DetailPage> {
               body: Center(child: Text('No detail found or malformed data')));
         }
 
-        final characterData = snapshot.data!['data'] as Map<String, dynamic>;
+        final characterData = snapshot.data!['data'] as Map<String, dynamic>; // Pastikan ini mengambil bagian 'data'
 
-        print('Character data received: $characterData');
+        // print('Character data received: $characterData'); // Debugging
 
         return Scaffold(
           appBar: AppBar(
@@ -446,11 +451,12 @@ class _DetailPageState extends State<DetailPage> {
                 if (characterData['imageUrl'] != null &&
                     characterData['imageUrl'].isNotEmpty)
                   Center(
-                    child: Image.network(
-                      characterData['imageUrl'],
+                    child: CachedNetworkImage( // Ganti Image.network dengan CachedNetworkImage
+                      imageUrl: characterData['imageUrl'],
                       height: 300,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                      placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                      errorWidget: (context, url, error) {
                         print('Error loading image: $error');
                         return const Icon(Icons.broken_image, size: 100);
                       },

@@ -5,7 +5,7 @@ part 'character_favorites_model.g.dart';
 @HiveType(typeId: 3)
 class CharacterFavoritesModel extends HiveObject {
   @HiveField(0)
-  String characterId;
+  int characterId; // <--- UBAH INI DARI STRING KE INT
 
   @HiveField(1)
   String characterName;

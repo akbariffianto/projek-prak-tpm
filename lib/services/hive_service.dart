@@ -3,7 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/review_model.dart';
 import '../models/bookmark_model.dart';
 import '../models/user_model.dart';
-import '../models/character_favorites_model.dart';
+import '../models/character_favorites_model.dart'; // Pastikan ini di-import
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HiveService {
@@ -19,15 +19,21 @@ class HiveService {
   Future<void> init() async {
     await Hive.initFlutter();
 
+    // === PENDAFTARAN ADAPTOR ===
     Hive.registerAdapter(ReviewModelAdapter());
     Hive.registerAdapter(BookmarkModelAdapter());
     Hive.registerAdapter(UserModelAdapter());
+    Hive.registerAdapter(CharacterFavoritesModelAdapter()); // <--- TAMBAHKAN INI
 
+    // === PEMBUKAAN BOX ===
     await Hive.openBox<ReviewModel>('reviews');
     await Hive.openBox<BookmarkModel>('bookmarks');
     await Hive.openBox<UserModel>('users');
+    await Hive.openBox<CharacterFavoritesModel>(characterFavoritesBoxName); // <--- TAMBAHKAN INI (gunakan constanta)
   }
 
+  // HAPUS/ABAIAKAN metode initHive() ini karena sudah digabung ke init()
+  /*
   Future<void> initHive() async {
     await Hive.initFlutter();
     Hive.registerAdapter(UserModelAdapter());
@@ -35,6 +41,7 @@ class HiveService {
     await Hive.openBox<UserModel>(userBoxName);
     await Hive.openBox<CharacterFavoritesModel>(characterFavoritesBoxName);
   }
+  */
 
   // Review
   Box<ReviewModel> get reviewBox => Hive.box<ReviewModel>('reviews');
@@ -125,10 +132,10 @@ class HiveService {
     await prefs.remove('userId');
   }
 
-  Future<void> updateCharacterFavorite(String characterId, String characterName) async {
-    final box = await Hive.openBox<CharacterFavoritesModel>('character_favorites');
+  Future<void> updateCharacterFavorite(int characterId, String characterName) async { // <--- UBAH TIPE data characterId menjadi INT
+    final box = Hive.box<CharacterFavoritesModel>(characterFavoritesBoxName); // Gunakan constanta
     var favorite = box.values.firstWhere(
-      (f) => f.characterId == characterId,
+      (f) => f.characterId == characterId, // Komparasi dengan int
       orElse: () => CharacterFavoritesModel(
         characterId: characterId,
         characterName: characterName,
@@ -137,18 +144,18 @@ class HiveService {
     );
 
     favorite.favoriteCount++;
-    await box.put(characterId, favorite);
+    await box.put(characterId, favorite); // Key juga int
   }
 
-  Future<int> getCharacterFavoriteCount(String characterId) async {
-    final box = await Hive.openBox<CharacterFavoritesModel>('character_favorites');
-    final favorite = box.get(characterId);
+  Future<int> getCharacterFavoriteCount(int characterId) async { // <--- UBAH TIPE data characterId menjadi INT
+    final box = Hive.box<CharacterFavoritesModel>(characterFavoritesBoxName); // Gunakan constanta
+    final favorite = box.get(characterId); // Key juga int
     return favorite?.favoriteCount ?? 0;
   }
 
   Future<void> logout() async {
     await clearUserSession(); // Clear the user session
-    final box = await Hive.openBox('appState');
-    await box.clear(); // Clear any other app state data
+    // final box = await Hive.openBox('appState'); // <--- HAPUS BARIS INI
+    // await box.clear(); // <--- HAPUS BARIS INI
   }
 }

@@ -5,6 +5,10 @@ import 'detail_page.dart';
 import 'bookmark_page.dart';
 import 'login_page.dart';
 import 'search_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,6 +20,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _charactersFuture;
   String _loggedInUsername = 'Guest';
+  String? _profilePhotoPath;
+  String? _userDescription; // Tambahkan variabel untuk deskripsi pengguna
   int _currentIndex = 0;
   final _hiveService = HiveService();
 
@@ -23,10 +29,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _charactersFuture = DisneyService.fetchCharacters();
-    _loadLoggedInUsername();
+    _loadLoggedInUsernameAndProfile();
   }
 
-  Future<void> _loadLoggedInUsername() async {
+  Future<void> _loadLoggedInUsernameAndProfile() async {
     try {
       final userId = await _hiveService.getUserSession();
       if (userId != null) {
@@ -35,11 +41,22 @@ class _HomePageState extends State<HomePage> {
           orElse: () => throw Exception('User not found'),
         );
         if (mounted) {
-          setState(() => _loggedInUsername = user.username);
+          setState(() {
+            _loggedInUsername = user.username;
+            _profilePhotoPath = user.profilePhotoPath;
+            _userDescription = user.description; // Muat deskripsi pengguna
+          });
         }
       }
     } catch (e) {
-      debugPrint('Error loading username: $e');
+      debugPrint('Error loading username or profile: $e');
+      if (mounted) {
+        setState(() {
+          _loggedInUsername = 'Guest';
+          _profilePhotoPath = null;
+          _userDescription = null; // Reset deskripsi juga
+        });
+      }
     }
   }
 
@@ -83,7 +100,7 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
               image: DecorationImage(
-                image: NetworkImage(character['imageUrl'] ?? ''),
+                image: CachedNetworkImageProvider(character['imageUrl'] ?? ''),
                 fit: BoxFit.cover,
               ),
             ),
@@ -115,7 +132,7 @@ class _HomePageState extends State<HomePage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  _buildFavoriteCount(character['_id'].toString()),
+                  _buildFavoriteCount(character['_id']),
                 ],
               ),
             ),
@@ -125,7 +142,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFavoriteCount(String characterId) {
+  Widget _buildFavoriteCount(int characterId) {
     return FutureBuilder<int>(
       future: _hiveService.getCharacterFavoriteCount(characterId),
       builder: (context, snapshot) {
@@ -163,10 +180,13 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Image.network(
-                character['imageUrl'] ?? '',
+              child: CachedNetworkImage(
+                imageUrl: character['imageUrl'] ?? '',
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Icon(
+                placeholder: (context, url) => Center(
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.primary,),
+                ),
+                errorWidget: (context, url, error) => Icon(
                   Icons.person,
                   size: 50,
                   color: Colors.grey[400],
@@ -188,7 +208,7 @@ class _HomePageState extends State<HomePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  _buildFavoriteCount(character['_id'].toString()),
+                  _buildFavoriteCount(character['_id']),
                 ],
               ),
             ),
@@ -227,7 +247,8 @@ class _HomePageState extends State<HomePage> {
         }
 
         final characters = snapshot.data!;
-        final topCharacters = characters.take(3).toList();
+        final topCharacters = characters.where((c) => c['_id'] is int).take(3).toList();
+
 
         return Column(
           children: [
@@ -252,20 +273,49 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildProfileContent() {
+    ImageProvider? profileImageProvider;
+    if (_profilePhotoPath != null) {
+      if (kIsWeb) {
+        try {
+          profileImageProvider = MemoryImage(base64Decode(_profilePhotoPath!));
+        } catch (e) {
+          debugPrint('Error decoding Base64 image: $e');
+          profileImageProvider = null;
+        }
+      } else {
+        profileImageProvider = FileImage(File(_profilePhotoPath!));
+      }
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center, // Pusatkan konten
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 50,
             backgroundColor: Colors.grey,
-            child: Icon(Icons.person, size: 50, color: Colors.white),
+            backgroundImage: profileImageProvider,
+            child: profileImageProvider == null
+                ? const Icon(Icons.person, size: 50, color: Colors.white)
+                : null,
           ),
           const SizedBox(height: 16),
           Text(
             _loggedInUsername,
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 8), // Sedikit jarak
+          // Tampilkan deskripsi pengguna jika ada
+          if (_userDescription != null && _userDescription!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                _userDescription!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+              ),
+            ),
           const SizedBox(height: 32),
           ListTile(
             leading: const Icon(Icons.bookmark),
@@ -273,7 +323,7 @@ class _HomePageState extends State<HomePage> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const BookmarkPage()),
-            ),
+            ).then((_) => _loadLoggedInUsernameAndProfile()),
           ),
           const Spacer(),
           SizedBox(
@@ -331,7 +381,12 @@ class _HomePageState extends State<HomePage> {
       body: _buildBody(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          if (index == 2) {
+            _loadLoggedInUsernameAndProfile();
+          }
+        },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

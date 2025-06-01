@@ -1,0 +1,2 @@
+D:/Fahmi File/KULIAH/SEM 6/Praktikum Pemrograman Mobile/projek akhir/dev/projek-prak-tpm/android/app/.cxx/Debug/i1j1o1z4/armeabi-v7a/CMakeFiles/edit_cache.dir
+D:/Fahmi File/KULIAH/SEM 6/Praktikum Pemrograman Mobile/projek akhir/dev/projek-prak-tpm/android/app/.cxx/Debug/i1j1o1z4/armeabi-v7a/CMakeFiles/rebuild_cache.dir

@@ -20,10 +20,10 @@ class UserModel extends HiveObject {
   String? profilePhotoPath;
 
   @HiveField(5)
-  String? favoriteCharacterId;
+  int? favoriteCharacterId; // Tetap int?, tapi kini opsional
 
   @HiveField(6)
-  String? favoriteCharacterName;
+  String? favoriteCharacterName; // Tetap String?, tapi kini opsional
 
   @HiveField(7)
   String? description;
@@ -34,8 +34,8 @@ class UserModel extends HiveObject {
     required this.password,
     required this.createdAt,
     this.profilePhotoPath,
-    this.favoriteCharacterId,
-    this.favoriteCharacterName,
+    this.favoriteCharacterId, // Pastikan ini opsional di konstruktor
+    this.favoriteCharacterName, // Pastikan ini opsional di konstruktor
     this.description,
   });
 }

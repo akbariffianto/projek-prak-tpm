@@ -47,7 +47,8 @@ class MyApp extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Margin default untuk Card
+          margin: const EdgeInsets.symmetric(
+              horizontal: 16, vertical: 8), // Margin default untuk Card
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -55,14 +56,16 @@ class MyApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             backgroundColor: Colors.deepPurple, // Default warna tombol
             foregroundColor: Colors.white, // Default warna teks tombol
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: Colors.deepPurple, // Warna TextButton sesuai primary
+            foregroundColor:
+                Colors.deepPurple, // Warna TextButton sesuai primary
             textStyle: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
@@ -73,7 +76,8 @@ class MyApp extends StatelessWidget {
           ),
           filled: true,
           fillColor: Colors.grey.shade100, // Warna fill untuk TextField
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           hintStyle: TextStyle(color: Colors.grey.shade600),
           labelStyle: TextStyle(color: Colors.grey.shade800),
         ),

@@ -1,4 +1,3 @@
-// Path: lib/pages/register_page.dart
 import 'package:flutter/material.dart';
 import '../services/hive_service.dart';
 import '../models/user_model.dart';
@@ -6,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -19,8 +19,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final _descriptionController = TextEditingController();
   String? _error;
   File? _profileImage;
-  String? _selectedCharacterId;
-  String? _selectedCharacterName;
+  // Hapus _selectedCharacterId dan _selectedCharacterName karena tidak lagi diisi di sini
+  // String? _selectedCharacterId;
+  // String? _selectedCharacterName;
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -43,10 +44,9 @@ class _RegisterPageState extends State<RegisterPage> {
     
     try {
       if (kIsWeb) {
-        // For web, just return the path as-is since we can't access file system
-        return _profileImage!.path;
+        final bytes = await _profileImage!.readAsBytes();
+        return base64Encode(bytes);
       } else {
-        // For mobile platforms
         final directory = await getApplicationDocumentsDirectory();
         final fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final savedImage = await _profileImage!.copy('${directory.path}/$fileName');
@@ -58,14 +58,13 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future<void> _selectFavoriteCharacter() async {
-    // Implementasi dialog pemilihan karakter akan ditambahkan nanti
-    // Untuk sementara gunakan dummy data
-    setState(() {
-      _selectedCharacterId = "mickey";
-      _selectedCharacterName = "Mickey Mouse";
-    });
-  }
+  // Hapus metode _selectFavoriteCharacter() karena tidak lagi digunakan di sini
+  // Future<void> _selectFavoriteCharacter() async {
+  //   setState(() {
+  //     _selectedCharacterId = "1";
+  //     _selectedCharacterName = "Mickey Mouse";
+  //   });
+  // }
 
   Future<void> _register() async {
     final username = _usernameController.text.trim();
@@ -79,12 +78,13 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    if (_selectedCharacterId == null) {
-      setState(() {
-        _error = 'Please select your favorite Disney character';
-      });
-      return;
-    }
+    // Hapus validasi ini karena favorit karakter tidak lagi diisi saat registrasi
+    // if (_selectedCharacterId == null) {
+    //   setState(() {
+    //     _error = 'Please select your favorite Disney character';
+    //   });
+    //   return;
+    // }
 
     final existingUser = HiveService().getUserByUsername(username);
     if (existingUser != null) {
@@ -102,23 +102,26 @@ class _RegisterPageState extends State<RegisterPage> {
       password: password,
       createdAt: DateTime.now(),
       profilePhotoPath: profilePhotoPath,
-      favoriteCharacterId: _selectedCharacterId,
-      favoriteCharacterName: _selectedCharacterName,
+      // Hapus favoriteCharacterId dan favoriteCharacterName dari sini
+      // favoriteCharacterId: int.tryParse(_selectedCharacterId!),
+      // favoriteCharacterName: _selectedCharacterName,
       description: description,
     );
 
     await HiveService().addUser(newUser);
-    if (_selectedCharacterId != null) {
-      await HiveService().updateCharacterFavorite(
-        _selectedCharacterId!,
-        _selectedCharacterName!,
-      );
-    }
+    // Hapus pemanggilan updateCharacterFavorite di sini
+    // if (_selectedCharacterId != null && _selectedCharacterName != null) {
+    //   await HiveService().updateCharacterFavorite(
+    //     int.parse(_selectedCharacterId!),
+    //     _selectedCharacterName!,
+    //   );
+    // }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration successful! Please login.')),
       );
+      await Future.delayed(const Duration(milliseconds: 300));
       Navigator.pop(context);
     }
   }
@@ -154,7 +157,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     color: Colors.grey[200],
                     image: _profileImage != null
                         ? DecorationImage(
-                            image: FileImage(_profileImage!),
+                            image: !kIsWeb
+                                ? FileImage(_profileImage!)
+                                : MemoryImage(base64Decode(_profileImage!.path)) as ImageProvider,
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -193,18 +198,18 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
 
-              // Favorite Character Selection
-              ListTile(
-                leading: const Icon(Icons.favorite),
-                title: Text(_selectedCharacterName ?? 'Select Favorite Character'),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                tileColor: Colors.grey[100],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                onTap: _selectFavoriteCharacter,
-              ),
-              const SizedBox(height: 16),
+              // Hapus bagian ini karena tidak ada pilihan favorit karakter lagi di sini
+              // ListTile(
+              //   leading: const Icon(Icons.favorite),
+              //   title: Text(_selectedCharacterName ?? 'Select Favorite Character'),
+              //   trailing: const Icon(Icons.arrow_forward_ios),
+              //   tileColor: Colors.grey[100],
+              //   shape: RoundedRectangleBorder(
+              //     borderRadius: BorderRadius.circular(8),
+              //   ),
+              //   onTap: _selectFavoriteCharacter,
+              // ),
+              // const SizedBox(height: 16),
 
               // Description Field
               TextField(

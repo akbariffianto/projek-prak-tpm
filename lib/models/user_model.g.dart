@@ -22,7 +22,7 @@ class UserModelAdapter extends TypeAdapter<UserModel> {
       password: fields[2] as String,
       createdAt: fields[3] as DateTime,
       profilePhotoPath: fields[4] as String?,
-      favoriteCharacterId: fields[5] as String?,
+      favoriteCharacterId: fields[5] as int?,
       favoriteCharacterName: fields[6] as String?,
       description: fields[7] as String?,
     );
