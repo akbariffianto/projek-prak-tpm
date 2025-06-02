@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/disney_service.dart';
+import 'detail_page.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -61,9 +62,12 @@ class _SearchPageState extends State<SearchPage> {
                         const Icon(Icons.person, size: 50),
                   ),
                   title: Text(character['name'] ?? 'No Name'),
-                  onTap: () {
-                    // Navigate to detail page
-                  },
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DetailPage(characterId: character['_id']),
+                    ),
+                  ),
                 );
               },
             ),

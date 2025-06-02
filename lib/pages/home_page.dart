@@ -3,12 +3,9 @@ import '../services/disney_service.dart';
 import '../services/hive_service.dart';
 import 'detail_page.dart';
 import 'bookmark_page.dart';
-import 'login_page.dart';
 import 'search_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:convert';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,8 +17,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<dynamic>> _charactersFuture;
   String _loggedInUsername = 'Guest';
-  String? _profilePhotoPath;
-  String? _userDescription; // Tambahkan variabel untuk deskripsi pengguna
   int _currentIndex = 0;
   final _hiveService = HiveService();
 
@@ -43,8 +38,6 @@ class _HomePageState extends State<HomePage> {
         if (mounted) {
           setState(() {
             _loggedInUsername = user.username;
-            _profilePhotoPath = user.profilePhotoPath;
-            _userDescription = user.description; // Muat deskripsi pengguna
           });
         }
       }
@@ -53,45 +46,14 @@ class _HomePageState extends State<HomePage> {
       if (mounted) {
         setState(() {
           _loggedInUsername = 'Guest';
-          _profilePhotoPath = null;
-          _userDescription = null; // Reset deskripsi juga
         });
       }
     }
   }
 
-  Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      await _hiveService.logout();
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-        (route) => false,
-      );
-    }
-  }
-
   Widget _buildTopCharactersCard(Map<String, dynamic> character, int index) {
+    final bookmarkCount = _hiveService.getBookmarkCounts()[character['_id']] ?? 0;
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Stack(
@@ -132,37 +94,19 @@ class _HomePageState extends State<HomePage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  _buildFavoriteCount(character['_id']),
+                  Text(
+                    '$bookmarkCount Bookmarks',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFavoriteCount(int characterId) {
-    return FutureBuilder<int>(
-      future: _hiveService.getCharacterFavoriteCount(characterId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text(
-            'Loading...',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
-          );
-        }
-        return Text(
-          '${snapshot.data ?? 0} favorites',
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 14,
-          ),
-        );
-      },
     );
   }
 
@@ -208,7 +152,6 @@ class _HomePageState extends State<HomePage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  _buildFavoriteCount(character['_id']),
                 ],
               ),
             ),
@@ -247,8 +190,17 @@ class _HomePageState extends State<HomePage> {
         }
 
         final characters = snapshot.data!;
-        final topCharacters = characters.where((c) => c['_id'] is int).take(3).toList();
+        final bookmarkCounts = _hiveService.getBookmarkCounts();
+        
+        // Sort characters by bookmark count
+        final sortedCharacters = List<Map<String, dynamic>>.from(characters)
+          ..sort((a, b) {
+            final aCount = bookmarkCounts[a['_id']] ?? 0;
+            final bCount = bookmarkCounts[b['_id']] ?? 0;
+            return bCount.compareTo(aCount); // Sort in descending order
+          });
 
+        final topCharacters = sortedCharacters.take(3).toList();
 
         return Column(
           children: [
@@ -273,74 +225,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildProfileContent() {
-    ImageProvider? profileImageProvider;
-    if (_profilePhotoPath != null) {
-      if (kIsWeb) {
-        try {
-          profileImageProvider = MemoryImage(base64Decode(_profilePhotoPath!));
-        } catch (e) {
-          debugPrint('Error decoding Base64 image: $e');
-          profileImageProvider = null;
-        }
-      } else {
-        profileImageProvider = FileImage(File(_profilePhotoPath!));
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center, // Pusatkan konten
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: Colors.grey,
-            backgroundImage: profileImageProvider,
-            child: profileImageProvider == null
-                ? const Icon(Icons.person, size: 50, color: Colors.white)
-                : null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _loggedInUsername,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8), // Sedikit jarak
-          // Tampilkan deskripsi pengguna jika ada
-          if (_userDescription != null && _userDescription!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                _userDescription!,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-              ),
-            ),
-          const SizedBox(height: 32),
-          ListTile(
-            leading: const Icon(Icons.bookmark),
-            title: const Text('My Bookmarks'),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const BookmarkPage()),
-            ).then((_) => _loadLoggedInUsernameAndProfile()),
-          ),
-          const Spacer(),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _handleLogout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const ProfilePage();
   }
 
   Widget _buildBody() {

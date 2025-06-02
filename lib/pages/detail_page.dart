@@ -4,7 +4,7 @@ import '../services/disney_service.dart';
 import '../services/hive_service.dart';
 import '../models/review_model.dart';
 import '../models/bookmark_model.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // Import ini
+import 'package:cached_network_image/cached_network_image.dart';
 
 class DetailPage extends StatefulWidget {
   final int characterId;
@@ -24,15 +24,13 @@ class _DetailPageState extends State<DetailPage> {
 
   int? _currentUserId;
   List<ReviewModel> _characterReviews = [];
-  Map<int, String> _usernames = {}; // Map untuk menyimpan userId ke username
+  Map<int, String> _usernames = {};
   ReviewModel? _editingReview;
 
   final GlobalKey _reviewTextFieldKey = GlobalKey();
 
   bool _isBookmarked = false;
   bool _bookmarkLoading = true;
-  bool _isFavorite = false;
-  bool _favoriteLoading = true;
 
   @override
   void initState() {
@@ -46,14 +44,11 @@ class _DetailPageState extends State<DetailPage> {
     if (_currentUserId != null) {
       await _loadReviews();
       await _checkBookmarkStatus();
-      await _checkFavoriteStatus();
     } else {
       setState(() {
         _bookmarkLoading = false;
-        _favoriteLoading = false;
       });
     }
-    // Tidak perlu setState di sini karena sudah dipanggil di _loadReviews dll.
   }
 
   Future<void> _loadReviews() async {
@@ -63,7 +58,6 @@ class _DetailPageState extends State<DetailPage> {
         .where((r) => r.characterId == widget.characterId)
         .toList();
 
-    // Load all usernames for the reviews
     final Map<int, String> fetchedUsernames = {};
     for (var review in allReviews) {
       if (!fetchedUsernames.containsKey(review.userId)) {
@@ -133,20 +127,6 @@ class _DetailPageState extends State<DetailPage> {
     }
   }
 
-  Future<void> _checkFavoriteStatus() async {
-    if (_currentUserId != null) {
-      final user = HiveService().userBox.values.firstWhere(
-            (u) => u.id == _currentUserId,
-            orElse: () => throw Exception('User not found'),
-          );
-      setState(() {
-        // Bandingkan dengan int, bukan string
-        _isFavorite = user.favoriteCharacterId == widget.characterId;
-        _favoriteLoading = false;
-      });
-    }
-  }
-
   Future<void> _toggleBookmark() async {
     if (_currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,65 +156,6 @@ class _DetailPageState extends State<DetailPage> {
       await hiveService.addBookmark(newBookmark);
     }
     await _checkBookmarkStatus();
-  }
-
-  Future<void> _toggleFavorite() async {
-    if (_currentUserId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please login to set favorite characters')),
-      );
-      return;
-    }
-
-    setState(() {
-      _favoriteLoading = true;
-    });
-
-    try {
-      final characterDataResponse = await _characterFuture; // Ambil respons lengkap
-      final characterData = characterDataResponse['data']; // Ambil data karakter dari respons
-      
-      final user = HiveService().userBox.values.firstWhere(
-            (u) => u.id == _currentUserId,
-            orElse: () => throw Exception('User not found'),
-          );
-
-      // Jika karakter ini sudah menjadi favorit, hapus dari favorit
-      if (user.favoriteCharacterId == widget.characterId) { // Bandingkan dengan int
-        user.favoriteCharacterId = null;
-        user.favoriteCharacterName = null;
-      } else {
-        // Jika belum, jadikan favorit
-        user.favoriteCharacterId = widget.characterId; // Simpan sebagai int
-        user.favoriteCharacterName = characterData['name'];
-        
-        // Update jumlah favorit di HiveService
-        await HiveService().updateCharacterFavorite(
-          widget.characterId, // Kirim int
-          characterData['name'],
-        );
-      }
-      
-      await user.save();
-      await _checkFavoriteStatus();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_isFavorite // _isFavorite akan berubah setelah await _checkFavoriteStatus()
-            ? 'Removed from favorites!'
-            : 'Added to favorites!'),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Error updating favorite status: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error updating favorite status')),
-      );
-    } finally {
-      setState(() {
-        _favoriteLoading = false;
-      });
-    }
   }
 
   Future<void> _submitReview() async {
@@ -395,34 +316,11 @@ class _DetailPageState extends State<DetailPage> {
           return const Scaffold(
               body: Center(child: Text('No detail found or malformed data')));
         }
-
-        final characterData = snapshot.data!['data'] as Map<String, dynamic>; // Pastikan ini mengambil bagian 'data'
-
-        // print('Character data received: $characterData'); // Debugging
-
+        final characterData = snapshot.data!['data'] as Map<String, dynamic>; 
         return Scaffold(
           appBar: AppBar(
             title: Text(characterData['name'] ?? 'Detail'),
             actions: [
-              _favoriteLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    )
-                  : IconButton(
-                      icon: Icon(_isFavorite
-                          ? Icons.favorite
-                          : Icons.favorite_border),
-                      onPressed: _toggleFavorite,
-                      tooltip: 'Set as Favorite',
-                    ),
               _bookmarkLoading
                   ? const Padding(
                       padding: EdgeInsets.all(16),

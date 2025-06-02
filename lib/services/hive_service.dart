@@ -1,19 +1,18 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/review_model.dart';
 import '../models/bookmark_model.dart';
 import '../models/user_model.dart';
-import '../models/character_favorites_model.dart'; // Pastikan ini di-import
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HiveService {
   static const String userBoxName = 'users';
-  static const String characterFavoritesBoxName = 'character_favorites';
+  static const String reviewBoxName = 'reviews';
+  static const String bookmarkBoxName = 'bookmarks';
 
   static final HiveService _instance = HiveService._internal();
-
   factory HiveService() => _instance;
-
   HiveService._internal();
 
   Future<void> init() async {
@@ -23,28 +22,15 @@ class HiveService {
     Hive.registerAdapter(ReviewModelAdapter());
     Hive.registerAdapter(BookmarkModelAdapter());
     Hive.registerAdapter(UserModelAdapter());
-    Hive.registerAdapter(CharacterFavoritesModelAdapter()); // <--- TAMBAHKAN INI
 
     // === PEMBUKAAN BOX ===
-    await Hive.openBox<ReviewModel>('reviews');
-    await Hive.openBox<BookmarkModel>('bookmarks');
-    await Hive.openBox<UserModel>('users');
-    await Hive.openBox<CharacterFavoritesModel>(characterFavoritesBoxName); // <--- TAMBAHKAN INI (gunakan constanta)
-  }
-
-  // HAPUS/ABAIAKAN metode initHive() ini karena sudah digabung ke init()
-  /*
-  Future<void> initHive() async {
-    await Hive.initFlutter();
-    Hive.registerAdapter(UserModelAdapter());
-    Hive.registerAdapter(CharacterFavoritesModelAdapter());
+    await Hive.openBox<ReviewModel>(reviewBoxName);
+    await Hive.openBox<BookmarkModel>(bookmarkBoxName);
     await Hive.openBox<UserModel>(userBoxName);
-    await Hive.openBox<CharacterFavoritesModel>(characterFavoritesBoxName);
   }
-  */
 
-  // Review
-  Box<ReviewModel> get reviewBox => Hive.box<ReviewModel>('reviews');
+  // Review methods
+  Box<ReviewModel> get reviewBox => Hive.box<ReviewModel>(reviewBoxName);
 
   Future<void> addReview(ReviewModel review) async {
     await reviewBox.add(review);
@@ -62,8 +48,8 @@ class HiveService {
     await review.delete();
   }
 
-  // Bookmark
-  Box<BookmarkModel> get bookmarkBox => Hive.box<BookmarkModel>('bookmarks');
+  // Bookmark methods
+  Box<BookmarkModel> get bookmarkBox => Hive.box<BookmarkModel>(bookmarkBoxName);
 
   Future<void> addBookmark(BookmarkModel bookmark) async {
     await bookmarkBox.add(bookmark);
@@ -82,8 +68,17 @@ class HiveService {
         .any((b) => b.userId == userId && b.characterId == characterId);
   }
 
-  // User
-  Box<UserModel> get userBox => Hive.box<UserModel>('users');
+  Map<int, int> getBookmarkCounts() {
+    final bookmarkCounts = <int, int>{};
+    for (var bookmark in bookmarkBox.values) {
+      bookmarkCounts[bookmark.characterId] =
+          (bookmarkCounts[bookmark.characterId] ?? 0) + 1;
+    }
+    return bookmarkCounts;
+  }
+
+  // User methods
+  Box<UserModel> get userBox => Hive.box<UserModel>(userBoxName);
 
   Future<int> addUser(UserModel user) async {
     return await userBox.add(user);
@@ -97,15 +92,40 @@ class HiveService {
     }
   }
 
-  Future<void> updateUser(UserModel user) async {
-    await user.save();
+  Future<void> updateUser(int userId, {
+    String? username,
+    String? profilePhotoPath,
+    String? description,
+  }) async {
+    try {
+      final user = userBox.values.firstWhere(
+        (u) => u.id == userId,
+      );
+      
+      if (username != null) user.username = username;
+      if (profilePhotoPath != null) user.profilePhotoPath = profilePhotoPath;
+      if (description != null) user.description = description;
+      
+      await user.save();
+    } catch (e) {
+      debugPrint('Error updating user: $e');
+      throw Exception('Failed to update user');
+    }
   }
 
-  Future<void> deleteUser(UserModel user) async {
-    await user.delete();
+  Future<void> deleteUser(int userId) async {
+    try {
+      final user = userBox.values.firstWhere(
+        (u) => u.id == userId,
+      );
+      await user.delete();
+      await logout();
+    } catch (e) {
+      debugPrint('Error deleting user: $e');
+      throw Exception('Failed to delete user');
+    }
   }
 
-  // Login sederhana: cari user berdasar username dan password
   UserModel? login(String username, String password) {
     try {
       return userBox.values
@@ -115,47 +135,23 @@ class HiveService {
     }
   }
 
+  // Session management
   Future<void> saveUserSession(int userId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('userId', userId);
   }
 
-  // Ambil userId yang login, null jika belum login
   Future<int?> getUserSession() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('userId');
   }
 
-  // Hapus session (logout)
   Future<void> clearUserSession() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userId');
   }
 
-  Future<void> updateCharacterFavorite(int characterId, String characterName) async { // <--- UBAH TIPE data characterId menjadi INT
-    final box = Hive.box<CharacterFavoritesModel>(characterFavoritesBoxName); // Gunakan constanta
-    var favorite = box.values.firstWhere(
-      (f) => f.characterId == characterId, // Komparasi dengan int
-      orElse: () => CharacterFavoritesModel(
-        characterId: characterId,
-        characterName: characterName,
-        favoriteCount: 0,
-      ),
-    );
-
-    favorite.favoriteCount++;
-    await box.put(characterId, favorite); // Key juga int
-  }
-
-  Future<int> getCharacterFavoriteCount(int characterId) async { // <--- UBAH TIPE data characterId menjadi INT
-    final box = Hive.box<CharacterFavoritesModel>(characterFavoritesBoxName); // Gunakan constanta
-    final favorite = box.get(characterId); // Key juga int
-    return favorite?.favoriteCount ?? 0;
-  }
-
   Future<void> logout() async {
-    await clearUserSession(); // Clear the user session
-    // final box = await Hive.openBox('appState'); // <--- HAPUS BARIS INI
-    // await box.clear(); // <--- HAPUS BARIS INI
+    await clearUserSession();
   }
 }
